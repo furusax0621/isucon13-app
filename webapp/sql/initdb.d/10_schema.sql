@@ -110,3 +110,5 @@ ALTER TABLE `livestream_viewers_history` ADD INDEX `livestream_id_idx` (`livestr
 ALTER TABLE `livecomments` ADD INDEX `livestream_id_idx` (`livestream_id`);
 ALTER TABLE `livecomment_reports` ADD INDEX `livestream_id_idx` (`livestream_id`);
 ALTER TABLE `icons` ADD INDEX `user_id_idx` (`user_id`);
+ALTER TABLE `ng_words` ADD INDEX `user_id_livestream_id_idx` (`user_id`, `livesream_id`);
+ALTER TABLE `ng_words` ADD INDEX `livestream_id_idx` (`livesream_id`);
