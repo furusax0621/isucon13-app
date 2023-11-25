@@ -513,8 +513,10 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels []*LivestreamModel) ([]Livestream, error) {
 	livestreams := make([]Livestream, len(livestreamModels))
 	livestreamUserIDs := make([]int64, len(livestreamModels))
+	livestreamIDs := make([]int64, len(livestreamModels))
 	for i, ls := range livestreamModels {
 		livestreamUserIDs[i] = ls.UserID
+		livestreamIDs[i] = ls.ID
 	}
 
 	ownerModels := []UserModel{}
@@ -545,6 +547,26 @@ func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels 
 		themeMap[themeModel.UserID] = themeModel
 	}
 
+	var livestreamTags []struct {
+		LivestreamID int64  `db:"livestream_id"`
+		TagID        int64  `db:"tag_id"`
+		TagName      string `db:"tag_name"`
+	}
+	query, params, err = sqlx.In("SELECT lt.livestream_id, t.* FROM tags AS t INNER JOIN `livestream_tags` AS `lt` ON `t`.`id` = `lt`.`tag_id` WHERE `lt`.`livestream_id` IN ?", livestreamIDs)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.SelectContext(ctx, &livestreamTags, query, params...); err != nil {
+		return nil, err
+	}
+	tagMap := make(map[int64][]Tag)
+	for _, livestreamTag := range livestreamTags {
+		tagMap[livestreamTag.LivestreamID] = append(tagMap[livestreamTag.LivestreamID], Tag{
+			ID:   livestreamTag.TagID,
+			Name: livestreamTag.TagName,
+		})
+	}
+
 	for i := range livestreamModels {
 		owner := ownerMap[livestreamModels[i].UserID]
 		themeModel := themeMap[livestreamModels[i].UserID]
@@ -573,25 +595,11 @@ func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels 
 			IconHash: fmt.Sprintf("%x", iconHash),
 		}
 
-		q := "SELECT t.* FROM tags AS t INNER JOIN `livestream_tags` AS `lt` ON `t`.`id` = `lt`.`tag_id` WHERE `lt`.`livestream_id` = ?"
-		tagModels := []TagModel{}
-		if err := tx.SelectContext(ctx, &tagModels, q, livestreamModels[i].ID); err != nil {
-			return nil, err
-		}
-
-		tags := make([]Tag, len(tagModels))
-		for i := range tags {
-			tags[i] = Tag{
-				ID:   tagModels[i].ID,
-				Name: tagModels[i].Name,
-			}
-		}
-
 		livestream := Livestream{
 			ID:           livestreamModels[i].ID,
 			Owner:        user,
 			Title:        livestreamModels[i].Title,
-			Tags:         tags,
+			Tags:         tagMap[livestreamModels[i].ID],
 			Description:  livestreamModels[i].Description,
 			PlaylistUrl:  livestreamModels[i].PlaylistUrl,
 			ThumbnailUrl: livestreamModels[i].ThumbnailUrl,
