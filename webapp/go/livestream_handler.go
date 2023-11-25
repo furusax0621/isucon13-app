@@ -512,19 +512,34 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 
 func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels []*LivestreamModel) ([]Livestream, error) {
 	livestreams := make([]Livestream, len(livestreamModels))
-	for i := range livestreamModels {
-		ownerModel := UserModel{}
-		if err := tx.GetContext(ctx, &ownerModel, "SELECT * FROM users WHERE id = ?", livestreamModels[i].UserID); err != nil {
-			return nil, err
-		}
+	livestreamUserIDs := make([]int64, len(livestreamModels))
+	for i, ls := range livestreamModels {
+		livestreamUserIDs[i] = ls.UserID
+	}
 
+	ownerModels := []UserModel{}
+	query, params, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", livestreamUserIDs)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.SelectContext(ctx, &ownerModels, query, params...); err != nil {
+		return nil, err
+	}
+
+	ownerMap := make(map[int64]UserModel, len(ownerModels))
+	for _, ownerModel := range ownerModels {
+		ownerMap[ownerModel.ID] = ownerModel
+	}
+
+	for i := range livestreamModels {
+		owner := ownerMap[livestreamModels[i].UserID]
 		themeModel := ThemeModel{}
-		if err := tx.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE user_id = ?", ownerModel.ID); err != nil {
+		if err := tx.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE user_id = ?", owner.ID); err != nil {
 			return nil, err
 		}
 
 		var image []byte
-		if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", ownerModel.ID); err != nil {
+		if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", owner.ID); err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
 				return nil, err
 			}
@@ -536,10 +551,10 @@ func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels 
 		iconHash := sha256.Sum256(image)
 
 		user := User{
-			ID:          ownerModel.ID,
-			Name:        ownerModel.Name,
-			DisplayName: ownerModel.DisplayName,
-			Description: ownerModel.Description,
+			ID:          owner.ID,
+			Name:        owner.Name,
+			DisplayName: owner.DisplayName,
+			Description: owner.Description,
 			Theme: Theme{
 				ID:       themeModel.ID,
 				DarkMode: themeModel.DarkMode,
