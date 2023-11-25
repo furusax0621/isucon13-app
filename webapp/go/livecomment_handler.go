@@ -385,7 +385,7 @@ func moderateHandler(c echo.Context) error {
 	for _, ngword := range ngwords {
 		// ライブコメント一覧取得
 		var livecomments []*LivecommentModel
-		if err := tx.SelectContext(ctx, &livecomments, "SELECT * FROM livecomments"); err != nil {
+		if err := tx.SelectContext(ctx, &livecomments, "SELECT * FROM livecomments WHERE livestream_id = ?", livestreamID); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
 		}
 
@@ -394,7 +394,6 @@ func moderateHandler(c echo.Context) error {
 			DELETE FROM livecomments
 			WHERE
 			id = ? AND
-			livestream_id = ? AND
 			(SELECT COUNT(*)
 			FROM
 			(SELECT ? AS text) AS texts
@@ -402,7 +401,7 @@ func moderateHandler(c echo.Context) error {
 			(SELECT CONCAT('%', ?, '%')	AS pattern) AS patterns
 			ON texts.text LIKE patterns.pattern) >= 1;
 			`
-			if _, err := tx.ExecContext(ctx, query, livecomment.ID, livestreamID, livecomment.Comment, ngword.Word); err != nil {
+			if _, err := tx.ExecContext(ctx, query, livecomment.ID, livecomment.Comment, ngword.Word); err != nil {
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to delete old livecomments that hit spams: "+err.Error())
 			}
 		}
