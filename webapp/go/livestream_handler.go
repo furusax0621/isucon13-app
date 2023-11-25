@@ -585,7 +585,6 @@ func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels 
 		owner := ownerMap[livestreamModels[i].UserID]
 		themeModel := themeMap[livestreamModels[i].UserID]
 		iconHash, ok := hashMap[livestreamModels[i].UserID]
-
 		if !ok {
 			iconHash = fallbackImageHash
 		}
@@ -602,11 +601,16 @@ func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels 
 			IconHash: fmt.Sprintf("%x", iconHash),
 		}
 
+		tags := tagMap[livestreamModels[i].ID]
+		if tags == nil {
+			tags = []Tag{}
+		}
+
 		livestream := Livestream{
 			ID:           livestreamModels[i].ID,
 			Owner:        user,
 			Title:        livestreamModels[i].Title,
-			Tags:         tagMap[livestreamModels[i].ID],
+			Tags:         tags,
 			Description:  livestreamModels[i].Description,
 			PlaylistUrl:  livestreamModels[i].PlaylistUrl,
 			ThumbnailUrl: livestreamModels[i].ThumbnailUrl,
