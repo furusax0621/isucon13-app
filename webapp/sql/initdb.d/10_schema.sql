@@ -105,6 +105,12 @@ CREATE TABLE `reactions` (
   `created_at` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
+-- アイコンのハッシュ値を保存するテーブル
+CREATE TABLE `icon_hashes` (
+  `icon_id` BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `hash` VARCHAR(64) NOT NULL
+) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+
 ALTER TABLE `reactions` ADD INDEX `livestream_id_idx` (`livestream_id`);
 ALTER TABLE `livestream_viewers_history` ADD INDEX `livestream_id_idx` (`livestream_id`);
 ALTER TABLE `livecomments` ADD INDEX `livestream_id_idx` (`livestream_id`);
@@ -112,3 +118,4 @@ ALTER TABLE `livecomment_reports` ADD INDEX `livestream_id_idx` (`livestream_id`
 ALTER TABLE `icons` ADD INDEX `user_id_idx` (`user_id`);
 ALTER TABLE `ng_words` ADD INDEX `user_id_livestream_id_idx` (`user_id`, `livestream_id`);
 ALTER TABLE `ng_words` ADD INDEX `livestream_id_idx` (`livestream_id`);
+ALTER TABLE `icon_hashes` ADD INDEX `hash_id_idx` (`hash`);
