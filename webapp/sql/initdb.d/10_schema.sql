@@ -119,3 +119,4 @@ ALTER TABLE `icons` ADD INDEX `user_id_idx` (`user_id`);
 ALTER TABLE `ng_words` ADD INDEX `user_id_livestream_id_idx` (`user_id`, `livestream_id`);
 ALTER TABLE `ng_words` ADD INDEX `livestream_id_idx` (`livestream_id`);
 ALTER TABLE `icon_hashes` ADD INDEX `hash_id_idx` (`hash`);
+ALTER TABLE `livestream_tags` ADD INDEX `livestream_id_idx` (`livestream_id`);
