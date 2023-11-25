@@ -4,6 +4,7 @@ package main
 // sqlx的な参考: https://jmoiron.github.io/sqlx/
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"log"
 	"net"
@@ -110,6 +111,38 @@ func initializeHandler(c echo.Context) error {
 	if out, err := exec.Command("../sql/init.sh").CombinedOutput(); err != nil {
 		c.Logger().Warnf("init.sh failed with err=%s", string(out))
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to initialize: "+err.Error())
+	}
+
+	ctx := c.Request().Context()
+	tx, err := dbConn.BeginTxx(ctx, nil)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to begin transaction: "+err.Error())
+	}
+	defer tx.Rollback()
+
+	var icons []struct {
+		ID    int64  `db:"id"`
+		Image []byte `db:"image"`
+	}
+
+	if err := tx.SelectContext(ctx, &icons, "SELECT id, image FROM icons"); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to select icons: "+err.Error())
+	}
+	stmt, err := tx.PrepareContext(ctx, "INSERT INTO icon_hashes (icon_id, hash) VALUES (?, ?)")
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to prepare statement: "+err.Error())
+	}
+	defer stmt.Close()
+
+	for _, icon := range icons {
+		hash := sha256.Sum256(icon.Image)
+		if _, err := stmt.ExecContext(ctx, icon.ID, fmt.Sprintf("%x", hash)); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert icon hash: "+err.Error())
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
 
 	c.Request().Header.Add("Content-Type", "application/json;charset=utf-8")
