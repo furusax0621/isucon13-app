@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -108,6 +109,7 @@ func getIconHandler(c echo.Context) error {
 	reqHash := c.Request().Header.Get("If-None-Match")
 	if reqHash != "" {
 		c.Logger().Infof("If-None-Match: %q", reqHash)
+		reqHash = strings.ReplaceAll(reqHash, "\"", "")
 		var id int64
 		if err := tx.GetContext(ctx, &id, "SELECT id FROM icons AS i JOIN icon_hashes AS ih ON i.id = ih.icon_id WHERE i.user_id = ? AND ih.hash = ?", user.ID, reqHash); err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
