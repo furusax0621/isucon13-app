@@ -549,8 +549,8 @@ func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels 
 
 	var livestreamTags []struct {
 		LivestreamID int64  `db:"livestream_id"`
-		TagID        int64  `db:"tag_id"`
-		TagName      string `db:"tag_name"`
+		TagID        int64  `db:"id"`
+		TagName      string `db:"name"`
 	}
 	query, params, err = sqlx.In("SELECT lt.livestream_id, t.* FROM tags AS t INNER JOIN `livestream_tags` AS `lt` ON `t`.`id` = `lt`.`tag_id` WHERE `lt`.`livestream_id` IN (?)", livestreamIDs)
 	if err != nil {
