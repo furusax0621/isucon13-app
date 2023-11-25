@@ -2,13 +2,11 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -567,21 +565,30 @@ func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels 
 		})
 	}
 
+	var livestreamIconHashes []struct {
+		UserID int64  `db:"user_id"`
+		Hash   string `db:"hash"`
+	}
+	query, params, err = sqlx.In("SELECT i.user_id, ih.hash FROM icon_hashes AS ih JOIN icons AS i ON i.id = ih.icon_id WHERE i.user_id IN (?)", livestreamUserIDs)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.SelectContext(ctx, &livestreamIconHashes, query, params...); err != nil {
+		return nil, err
+	}
+	hashMap := make(map[int64]string, len(livestreamIconHashes))
+	for _, livestreamIconHash := range livestreamIconHashes {
+		hashMap[livestreamIconHash.UserID] = livestreamIconHash.Hash
+	}
+
 	for i := range livestreamModels {
 		owner := ownerMap[livestreamModels[i].UserID]
 		themeModel := themeMap[livestreamModels[i].UserID]
+		iconHash, ok := hashMap[livestreamModels[i].UserID]
 
-		var image []byte
-		if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", owner.ID); err != nil {
-			if !errors.Is(err, sql.ErrNoRows) {
-				return nil, err
-			}
-			image, err = os.ReadFile(fallbackImage)
-			if err != nil {
-				return nil, err
-			}
+		if !ok {
+			iconHash = fallbackImageHash
 		}
-		iconHash := sha256.Sum256(image)
 
 		user := User{
 			ID:          owner.ID,
