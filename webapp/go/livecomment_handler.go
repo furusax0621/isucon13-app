@@ -502,16 +502,25 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, livecommentModel
 		hashMap[livestreamIconHash.UserID] = livestreamIconHash.Hash
 	}
 
-	for i := range livecommentModels {
-		livestreamModel := LivestreamModel{}
-		if err := tx.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livecommentModels[i].LivestreamID); err != nil {
-			return nil, err
-		}
-		livestream, err := fillLivestreamResponse(ctx, tx, livestreamModel)
-		if err != nil {
-			return nil, err
-		}
+	livestreamIDs := make([]int64, len(livecommentModels))
+	for i := range livestreamIDs {
+		livestreamIDs[i] = livecommentModels[i].LivestreamID
+	}
+	var livestreams []*LivestreamModel
+	if err := tx.SelectContext(ctx, &livestreams, "SELECT * FROM livestreams WHERE id IN (?)", livestreamIDs); err != nil {
+		return nil, err
+	}
+	livestreamResps, err := fillLivestreamResponses(ctx, tx, livestreams)
+	if err != nil {
+		return nil, err
+	}
+	livestreamMap := make(map[int64]Livestream, len(livestreamResps))
+	for _, resp := range livestreamResps {
+		livestreamMap[resp.ID] = resp
+	}
 
+	for i := range livecommentModels {
+		livestream := livestreamMap[livecommentModels[i].LivestreamID]
 		iconHash, ok := hashMap[livecommentModels[i].UserID]
 		if !ok {
 			iconHash = fallbackImageHash
