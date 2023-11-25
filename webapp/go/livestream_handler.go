@@ -601,8 +601,8 @@ func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels 
 			IconHash: fmt.Sprintf("%x", iconHash),
 		}
 
-		tags := tagMap[livestreamModels[i].ID]
-		if tags == nil {
+		tags, ok := tagMap[livestreamModels[i].ID]
+		if !ok {
 			tags = []Tag{}
 		}
 
