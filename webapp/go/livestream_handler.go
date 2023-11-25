@@ -531,12 +531,23 @@ func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels 
 		ownerMap[ownerModel.ID] = ownerModel
 	}
 
+	themeModels := []ThemeModel{}
+	query, params, err = sqlx.In("SELECT * FROM themes WHERE user_id IN (?)", livestreamUserIDs)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.SelectContext(ctx, &themeModels, query, params...); err != nil {
+		return nil, err
+	}
+
+	themeMap := make(map[int64]ThemeModel, len(themeModels))
+	for _, themeModel := range themeModels {
+		themeMap[themeModel.UserID] = themeModel
+	}
+
 	for i := range livestreamModels {
 		owner := ownerMap[livestreamModels[i].UserID]
-		themeModel := ThemeModel{}
-		if err := tx.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE user_id = ?", owner.ID); err != nil {
-			return nil, err
-		}
+		themeModel := themeMap[livestreamModels[i].UserID]
 
 		var image []byte
 		if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", owner.ID); err != nil {
