@@ -218,7 +218,6 @@ func searchLivestreamsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fill livestream: "+err.Error())
 	}
 
-
 	if err := tx.Commit(); err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
@@ -512,9 +511,43 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels []*LivestreamModel) ([]Livestream, error) {
 	livestreams := make([]Livestream, len(livestreamModels))
 	for i := range livestreamModels {
-		livestream, err := fillLivestreamResponse(ctx, tx, *livestreamModels[i])
+		ownerModel := UserModel{}
+		if err := tx.GetContext(ctx, &ownerModel, "SELECT * FROM users WHERE id = ?", livestreamModels[i].UserID); err != nil {
+			return nil, err
+		}
+		owner, err := fillUserResponse(ctx, tx, ownerModel)
 		if err != nil {
 			return nil, err
+		}
+
+		var livestreamTagModels []*LivestreamTagModel
+		if err := tx.SelectContext(ctx, &livestreamTagModels, "SELECT * FROM livestream_tags WHERE livestream_id = ?", livestreamModels[i].ID); err != nil {
+			return nil, err
+		}
+
+		tags := make([]Tag, len(livestreamTagModels))
+		for i := range livestreamTagModels {
+			tagModel := TagModel{}
+			if err := tx.GetContext(ctx, &tagModel, "SELECT * FROM tags WHERE id = ?", livestreamTagModels[i].TagID); err != nil {
+				return nil, err
+			}
+
+			tags[i] = Tag{
+				ID:   tagModel.ID,
+				Name: tagModel.Name,
+			}
+		}
+
+		livestream := Livestream{
+			ID:           livestreamModels[i].ID,
+			Owner:        owner,
+			Title:        livestreamModels[i].Title,
+			Tags:         tags,
+			Description:  livestreamModels[i].Description,
+			PlaylistUrl:  livestreamModels[i].PlaylistUrl,
+			ThumbnailUrl: livestreamModels[i].ThumbnailUrl,
+			StartAt:      livestreamModels[i].StartAt,
+			EndAt:        livestreamModels[i].EndAt,
 		}
 		livestreams[i] = livestream
 	}
