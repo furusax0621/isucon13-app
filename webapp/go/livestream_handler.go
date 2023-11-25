@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -515,9 +517,34 @@ func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels 
 		if err := tx.GetContext(ctx, &ownerModel, "SELECT * FROM users WHERE id = ?", livestreamModels[i].UserID); err != nil {
 			return nil, err
 		}
-		owner, err := fillUserResponse(ctx, tx, ownerModel)
-		if err != nil {
+
+		themeModel := ThemeModel{}
+		if err := tx.GetContext(ctx, &themeModel, "SELECT * FROM themes WHERE user_id = ?", ownerModel.ID); err != nil {
 			return nil, err
+		}
+
+		var image []byte
+		if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", ownerModel.ID); err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				return nil, err
+			}
+			image, err = os.ReadFile(fallbackImage)
+			if err != nil {
+				return nil, err
+			}
+		}
+		iconHash := sha256.Sum256(image)
+
+		user := User{
+			ID:          ownerModel.ID,
+			Name:        ownerModel.Name,
+			DisplayName: ownerModel.DisplayName,
+			Description: ownerModel.Description,
+			Theme: Theme{
+				ID:       themeModel.ID,
+				DarkMode: themeModel.DarkMode,
+			},
+			IconHash: fmt.Sprintf("%x", iconHash),
 		}
 
 		q := "SELECT t.* FROM tags AS t INNER JOIN `livestream_tags` AS `lt` ON `t`.`id` = `lt`.`tag_id` WHERE `lt`.`livestream_id` = ?"
@@ -536,7 +563,7 @@ func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels 
 
 		livestream := Livestream{
 			ID:           livestreamModels[i].ID,
-			Owner:        owner,
+			Owner:        user,
 			Title:        livestreamModels[i].Title,
 			Tags:         tags,
 			Description:  livestreamModels[i].Description,
