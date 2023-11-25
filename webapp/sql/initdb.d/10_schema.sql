@@ -111,4 +111,4 @@ ALTER TABLE `livecomments` ADD INDEX `livestream_id_idx` (`livestream_id`);
 ALTER TABLE `livecomment_reports` ADD INDEX `livestream_id_idx` (`livestream_id`);
 ALTER TABLE `icons` ADD INDEX `user_id_idx` (`user_id`);
 ALTER TABLE `ng_words` ADD INDEX `user_id_livestream_id_idx` (`user_id`, `livestream_id`);
-ALTER TABLE `ng_words` ADD INDEX `livestream_id_idx` (`livesrteam_id`);
+ALTER TABLE `ng_words` ADD INDEX `livestream_id_idx` (`livestream_id`);
