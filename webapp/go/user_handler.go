@@ -107,14 +107,17 @@ func getIconHandler(c echo.Context) error {
 	// アイコンのハッシュ値を取得。ハッシュが存在する場合は304を返す
 	reqHash := c.Request().Header.Get("If-None-Match")
 	if reqHash != "" {
+		c.Logger().Infof("If-None-Match: %q", reqHash)
 		var id int64
 		if err := tx.GetContext(ctx, &id, "SELECT id FROM icons AS i JOIN icon_hashes AS ih ON i.id = ih.icon_id WHERE i.user_id = ? AND ih.hash = ?", user.ID, reqHash); err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
 				return echo.NewHTTPError(http.StatusInternalServerError, "failed to get icon hash: "+err.Error())
 			}
 			// ハッシュが存在しないので、次の処理に進む
+			c.Logger().Warnf("hash not found: %q", reqHash)
 		} else {
 			// ハッシュが存在した
+			c.Logger().Infof("hash found: %q", reqHash)
 			return c.NoContent(http.StatusNotModified)
 		}
 	}
