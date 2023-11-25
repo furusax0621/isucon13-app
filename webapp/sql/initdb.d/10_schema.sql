@@ -104,3 +104,8 @@ CREATE TABLE `reactions` (
   `emoji_name` VARCHAR(255) NOT NULL,
   `created_at` BIGINT NOT NULL
 ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+
+ALTER TABLE `reactions` ADD INDEX `livestream_id_idx` (`livestream_id`);
+ALTER TABLE `livestream_viewers_history` ADD INDEX `livestream_id_idx` (`livestream_id`);
+ALTER TABLE `livecomments` ADD INDEX `livestream_id_idx` (`livestream_id`);
+ALTER TABLE `livecomment_reports` ADD INDEX `livestream_id_idx` (`livestream_id`);
