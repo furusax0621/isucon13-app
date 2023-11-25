@@ -598,7 +598,7 @@ func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels 
 				ID:       themeModel.ID,
 				DarkMode: themeModel.DarkMode,
 			},
-			IconHash: fmt.Sprintf("%x", iconHash),
+			IconHash: iconHash,
 		}
 
 		tags, ok := tagMap[livestreamModels[i].ID]
