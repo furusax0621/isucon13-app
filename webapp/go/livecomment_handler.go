@@ -449,6 +449,10 @@ func fillLivecommentResponse(ctx context.Context, tx *sqlx.Tx, livecommentModel 
 }
 
 func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, livecommentModels []LivecommentModel) ([]Livecomment, error) {
+	if len(livecommentModels) == 0 {
+		return []Livecomment{}, nil
+	}
+
 	livecomments := make([]Livecomment, len(livecommentModels))
 	commentOwnerIDs := make([]int64, len(livecommentModels))
 	for i := range commentOwnerIDs {
