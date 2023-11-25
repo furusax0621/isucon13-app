@@ -509,6 +509,9 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 }
 
 func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels []*LivestreamModel) ([]Livestream, error) {
+	if len(livestreamModels) == 0 {
+		return []Livestream{}, nil
+	}
 	livestreams := make([]Livestream, len(livestreamModels))
 	livestreamUserIDs := make([]int64, len(livestreamModels))
 	livestreamIDs := make([]int64, len(livestreamModels))
@@ -520,7 +523,7 @@ func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels 
 	ownerModels := []UserModel{}
 	query, params, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", livestreamUserIDs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to construct getting users query: %w", err)
 	}
 	if err := tx.SelectContext(ctx, &ownerModels, query, params...); err != nil {
 		return nil, err
@@ -534,7 +537,7 @@ func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels 
 	themeModels := []ThemeModel{}
 	query, params, err = sqlx.In("SELECT * FROM themes WHERE user_id IN (?)", livestreamUserIDs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to construct getting themes query: %w", err)
 	}
 	if err := tx.SelectContext(ctx, &themeModels, query, params...); err != nil {
 		return nil, err
@@ -552,7 +555,7 @@ func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels 
 	}
 	query, params, err = sqlx.In("SELECT lt.livestream_id, t.* FROM tags AS t INNER JOIN `livestream_tags` AS `lt` ON `t`.`id` = `lt`.`tag_id` WHERE `lt`.`livestream_id` IN (?)", livestreamIDs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to construct getting tags query: %w", err)
 	}
 	if err := tx.SelectContext(ctx, &livestreamTags, query, params...); err != nil {
 		return nil, err
@@ -571,7 +574,7 @@ func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels 
 	}
 	query, params, err = sqlx.In("SELECT i.user_id, ih.hash FROM icon_hashes AS ih JOIN icons AS i ON i.id = ih.icon_id WHERE i.user_id IN (?)", livestreamUserIDs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to construct getting icon hashes query: %w", err)
 	}
 	if err := tx.SelectContext(ctx, &livestreamIconHashes, query, params...); err != nil {
 		return nil, err
