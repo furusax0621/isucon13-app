@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -30,6 +29,7 @@ const (
 )
 
 var fallbackImage = "../img/NoImage.jpg"
+var fallbackImageHash string
 
 type UserModel struct {
 	ID             int64  `db:"id"`
@@ -432,11 +432,7 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 		if !errors.Is(err, sql.ErrNoRows) {
 			return User{}, err
 		}
-		image, err := os.ReadFile(fallbackImage)
-		if err != nil {
-			return User{}, err
-		}
-		iconHash = fmt.Sprintf("%x", sha256.Sum256(image))
+		iconHash = fallbackImageHash
 	}
 	// var image []byte
 	// if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", userModel.ID); err != nil {

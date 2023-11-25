@@ -145,6 +145,13 @@ func initializeHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to commit: "+err.Error())
 	}
 
+	// fallbackImage のハッシュ値を計算
+	fallbackImage, err := os.ReadFile(fallbackImage)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to read fallback image: "+err.Error())
+	}
+	fallbackImageHash = fmt.Sprintf("%x", sha256.Sum256(fallbackImage))
+
 	c.Request().Header.Add("Content-Type", "application/json;charset=utf-8")
 	return c.JSON(http.StatusOK, InitializeResponse{
 		Language: "golang",
