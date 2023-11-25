@@ -509,7 +509,7 @@ func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, livecommentModel
 		livestreamIDs[i] = livecommentModels[i].LivestreamID
 	}
 	var livestreams []*LivestreamModel
-	query, params, err = sqlx.In("SELECT * FROM livestreams WHERE id IN (?)", commentOwnerIDs)
+	query, params, err = sqlx.In("SELECT * FROM livestreams WHERE id IN (?)", livestreamIDs)
 	if err != nil {
 		return nil, err
 	}
