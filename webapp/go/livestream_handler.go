@@ -509,6 +509,9 @@ func fillLivestreamResponse(ctx context.Context, tx *sqlx.Tx, livestreamModel Li
 }
 
 func fillLivestreamResponses(ctx context.Context, tx *sqlx.Tx, livestreamModels []*LivestreamModel) ([]Livestream, error) {
+	if len(livestreamModels) == 0 {
+		return []Livestream{}, nil
+	}
 	livestreams := make([]Livestream, len(livestreamModels))
 	livestreamUserIDs := make([]int64, len(livestreamModels))
 	livestreamIDs := make([]int64, len(livestreamModels))
