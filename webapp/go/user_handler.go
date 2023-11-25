@@ -428,7 +428,7 @@ func fillUserResponse(ctx context.Context, tx *sqlx.Tx, userModel UserModel) (Us
 	}
 
 	var iconHash string
-	if err := tx.GetContext(ctx, &iconHash, "SELECT ih.hash FROM icon_hashes AS ih JOIN icons AS i IN i.id = ih.icon_id WHERE i.user_id = ?", userModel.ID); err != nil {
+	if err := tx.GetContext(ctx, &iconHash, "SELECT ih.hash FROM icon_hashes AS ih JOIN icons AS i ON i.id = ih.icon_id WHERE i.user_id = ?", userModel.ID); err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
 			return User{}, err
 		}
