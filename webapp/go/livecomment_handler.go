@@ -102,14 +102,9 @@ func getLivecommentsHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get livecomments: "+err.Error())
 	}
 
-	livecomments := make([]Livecomment, len(livecommentModels))
-	for i := range livecommentModels {
-		livecomment, err := fillLivecommentResponse(ctx, tx, livecommentModels[i])
-		if err != nil {
-			return echo.NewHTTPError(http.StatusInternalServerError, "failed to fil livecomments: "+err.Error())
-		}
-
-		livecomments[i] = livecomment
+	livecomments, err := fillLivecommentResponses(ctx, tx, livecommentModels)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to fil livecomments: "+err.Error())
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -451,6 +446,99 @@ func fillLivecommentResponse(ctx context.Context, tx *sqlx.Tx, livecommentModel 
 	}
 
 	return livecomment, nil
+}
+
+func fillLivecommentResponses(ctx context.Context, tx *sqlx.Tx, livecommentModels []LivecommentModel) ([]Livecomment, error) {
+	if len(livecommentModels) == 0 {
+		return []Livecomment{}, nil
+	}
+
+	livecomments := make([]Livecomment, len(livecommentModels))
+	commentOwnerIDs := make([]int64, len(livecommentModels))
+	for i := range commentOwnerIDs {
+		commentOwnerIDs[i] = livecommentModels[i].UserID
+	}
+
+	ownerModels := []UserModel{}
+	query, params, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", commentOwnerIDs)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.SelectContext(ctx, &ownerModels, query, params...); err != nil {
+		return nil, err
+	}
+	ownerMap := make(map[int64]UserModel, len(ownerModels))
+	for _, ownerModel := range ownerModels {
+		ownerMap[ownerModel.ID] = ownerModel
+	}
+
+	themeModels := []ThemeModel{}
+	query, params, err = sqlx.In("SELECT * FROM themes WHERE user_id IN (?)", commentOwnerIDs)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.SelectContext(ctx, &themeModels, query, params...); err != nil {
+		return nil, err
+	}
+
+	themeMap := make(map[int64]ThemeModel, len(themeModels))
+	for _, themeModel := range themeModels {
+		themeMap[themeModel.UserID] = themeModel
+	}
+
+	var livestreamIconHashes []struct {
+		UserID int64  `db:"user_id"`
+		Hash   string `db:"hash"`
+	}
+	query, params, err = sqlx.In("SELECT i.user_id, ih.hash FROM icon_hashes AS ih JOIN icons AS i ON i.id = ih.icon_id WHERE i.user_id IN (?)", commentOwnerIDs)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.SelectContext(ctx, &livestreamIconHashes, query, params...); err != nil {
+		return nil, err
+	}
+	hashMap := make(map[int64]string, len(livestreamIconHashes))
+	for _, livestreamIconHash := range livestreamIconHashes {
+		hashMap[livestreamIconHash.UserID] = livestreamIconHash.Hash
+	}
+
+	for i := range livecommentModels {
+		livestreamModel := LivestreamModel{}
+		if err := tx.GetContext(ctx, &livestreamModel, "SELECT * FROM livestreams WHERE id = ?", livecommentModels[i].LivestreamID); err != nil {
+			return nil, err
+		}
+		livestream, err := fillLivestreamResponse(ctx, tx, livestreamModel)
+		if err != nil {
+			return nil, err
+		}
+
+		iconHash, ok := hashMap[livecommentModels[i].UserID]
+		if !ok {
+			iconHash = fallbackImageHash
+		}
+
+		livecomment := Livecomment{
+			ID: livecommentModels[i].ID,
+			User: User{
+				ID:          ownerMap[livecommentModels[i].UserID].ID,
+				Name:        ownerMap[livecommentModels[i].UserID].Name,
+				DisplayName: ownerMap[livecommentModels[i].UserID].DisplayName,
+				Description: ownerMap[livecommentModels[i].UserID].Description,
+				Theme: Theme{
+					ID:       themeMap[livecommentModels[i].UserID].ID,
+					DarkMode: themeMap[livecommentModels[i].UserID].DarkMode,
+				},
+				IconHash: iconHash,
+			},
+			Livestream: livestream,
+			Comment:    livecommentModels[i].Comment,
+			Tip:        livecommentModels[i].Tip,
+			CreatedAt:  livecommentModels[i].CreatedAt,
+		}
+
+		livecomments[i] = livecomment
+	}
+	return livecomments, nil
 }
 
 func fillLivecommentReportResponse(ctx context.Context, tx *sqlx.Tx, reportModel LivecommentReportModel) (LivecommentReport, error) {
