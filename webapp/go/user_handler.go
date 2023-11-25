@@ -104,6 +104,21 @@ func getIconHandler(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get user: "+err.Error())
 	}
 
+	// アイコンのハッシュ値を取得。ハッシュが存在する場合は304を返す
+	reqHash := c.Request().Header.Get("If-None-Match")
+	if reqHash != "" {
+		var id int64
+		if err := tx.GetContext(ctx, &id, "SELECT id FROM icons AS i JOIN icon_hashes AS ih ON i.id = ih.icon_id WHERE i.user_id = ? AND ih.hash = ?", user.ID, reqHash); err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				return echo.NewHTTPError(http.StatusInternalServerError, "failed to get icon hash: "+err.Error())
+			}
+			// ハッシュが存在しないので、次の処理に進む
+		} else {
+			// ハッシュが存在した
+			return c.NoContent(http.StatusNotModified)
+		}
+	}
+
 	var image []byte
 	if err := tx.GetContext(ctx, &image, "SELECT image FROM icons WHERE user_id = ?", user.ID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -152,6 +167,12 @@ func postIconHandler(c echo.Context) error {
 	iconID, err := rs.LastInsertId()
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to get last inserted icon id: "+err.Error())
+	}
+
+	// アイコンのハッシュ値を保存
+	iconHash := sha256.Sum256(req.Image)
+	if _, err := tx.ExecContext(ctx, "INSERT INTO `icon_hashes` (`icon_id`, `hash`) VALUES (?, ?)", iconID, fmt.Sprintf("%x", iconHash)); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to insert new icon hash: "+err.Error())
 	}
 
 	if err := tx.Commit(); err != nil {
